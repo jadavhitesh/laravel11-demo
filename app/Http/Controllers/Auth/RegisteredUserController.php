@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use App\Models\Team;
 
 class RegisteredUserController extends Controller
 {
@@ -39,7 +40,15 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+        ]);     
+
+        $teams = Team::create([
+            'name' => $request->name.'\'s Team',
+            'user_id' => $user->id,
+            'personal_team' => true
         ]);
+
+        $user->update(['current_team_id' => $teams->id]);
 
         event(new Registered($user));
 

@@ -6,11 +6,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Jetstream\HasProfilePhoto;
+use Laravel\Jetstream\HasTeams;
+use Laravel\Sanctum\HasApiTokens;
+use App\Models\Team;
 
 class User extends Authenticatable
 {
+    use HasApiTokens;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+    use HasProfilePhoto;
+    use HasTeams;
+    use Notifiable;
+    use TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +42,17 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_recovery_codes',
+        'two_factor_secret',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'profile_photo_url',
     ];
 
     /**
@@ -44,5 +66,26 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Indicate that the user should have a personal team.
+     */
+    public function withPersonalTeam()
+    {
+        if (! Features::hasTeamFeatures()) {
+            return $this->state([]);
+        }
+
+        return $this->has(
+            Team::factory()
+                ->state(fn (array $attributes, User $user) => [
+                    'name' => $user->name.'\'s Team',
+                    'user_id' => $user->id,
+                    'personal_team' => true,
+                ])
+                ->when(is_callable($callback), $callback),
+            'ownedTeams'
+        );
     }
 }
